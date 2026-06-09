@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>GLORP BUSTERS v3 — a VoltWorks™ Pest Control Experience</title>
+<!-- For YouTube Playables deployment, add the SDK before game code:
+     <script src="https://www.youtube.com/game_api/v1"></script> -->
+<link rel="stylesheet" href="glorp-busters-v7.css">
+</head>
+<body>
+<div id="wrap">
+  <div class="hudbar">
+    <div class="chips">
+      <div class="chip" style="color:var(--or)"><span id="icCred"></span><b id="uiCred">0</b></div>
+      <div class="chip" style="color:var(--pk)"><span id="icLives"></span><b id="uiLives">0</b></div>
+      <div class="chip" id="powchip" style="color:var(--pu)"><span id="icPow"></span><span id="uiPow">0/0</span></div>
+      <div class="chip" style="color:var(--bio)"><span id="icBio"></span><b id="uiBio">0</b></div>
+      <div class="chip"><span id="icWave"></span>WAVE <b id="uiWave">0</b></div>
+      <div class="chip">SCORE <b id="uiScore">0</b></div>
+    </div>
+    <div class="chips">
+      <button class="btn bio" id="btnRes"><span id="icRes"></span>R&amp;D</button>
+      <button class="btn" id="btnSpeed">1×</button>
+      <button class="btn" id="btnSound">SND</button>
+      <button class="btn pk" id="btnWave">DEPLOY WAVE</button>
+    </div>
+  </div>
+  <div id="cvbox">
+    <canvas id="cv" width="960" height="520"></canvas>
+    <div id="announce"></div>
+    <div id="mixPanel" class="hidden">
+      <h4>SOUND LAB <span style="color:var(--dim);font-weight:400">(~ to toggle)</span></h4>
+      <div id="mixRows"></div>
+      <div class="mrow"><label>HATS</label><input type="checkbox" id="mixHats"></div>
+      <div class="mmode">
+        <button class="btn" data-mm="2">FULL</button>
+        <button class="btn" data-mm="1">MINIMAL</button>
+        <button class="btn" data-mm="0">SFX ONLY</button>
+      </div>
+    </div>
+    <div id="resPanel" class="hidden"><div id="resInner">
+      <h2><span id="icRes2"></span>XENO R&amp;D LAB</h2>
+      <div class="sub">Spend <b style="color:var(--bio)">BIOMASS</b> harvested from elite and boss bugs. Upgrades persist for the whole shift. Press R or tap outside to close.</div>
+      <div id="resList"></div>
+    </div></div>
+    <div id="overlay">
+      <div id="ovsub">VOLTWORKS™ PEST CONTROL, LLC PRESENTS</div>
+      <div id="ovtitle">GLORP<br>BUSTERS</div>
+      <div id="ovbody">The GLORP are back, and this time they brought <em>armor plating</em>, <em>elite
+        mutations</em>, and a creeping <em>corruption goo</em> that eats your build space. Corporate
+        responded by approving an R&amp;D lab. Generous.<br><br>
+        Maze them. Strip their shells (lasers crack plates 3× faster). Burn back the goo — turrets
+        purge it slowly, plasma splats purge it fast. Harvest <em>biomass</em> from elites and spend
+        it in R&amp;D. Watch the power grid.<br><br>
+        New this quarter: your turrets are now <em>instruments</em>. Every gun fires on the beat, your maze layout picks the notes, and the whole battle plays in key. Build <em>on the beat</em> for cash refunds — watch the pulsing frame. <em>The only good glorp is a fried, de-shelled, rhythmically invoiced glorp.</em></div>
+      <button class="btn pk" id="btnStart" style="font-size:18px;padding:12px 28px;">CLOCK IN ▶</button>
+    </div>
+  </div>
+  <div id="bottombar">
+    <div id="buildbar"></div>
+    <div id="info"><h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Tap a placed turret to inspect/upgrade/sell. Space deploys. R opens R&amp;D.</span></div>
+  </div>
+  <div id="ticker">VOLTWORKS™ — proudly frying bugs since the incident we don't discuss · the goo is not a beverage · R&amp;D is not liable for new limbs</div>
+</div>
+<script src="glorp-glyphs.js"></script>
+<script src="glorp-busters-v7.js"></script>
+</body>
+</html>
