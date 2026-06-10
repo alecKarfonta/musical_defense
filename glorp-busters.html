@@ -16,6 +16,7 @@
       <div class="chip" style="color:var(--pk)"><span id="icLives"></span><b id="uiLives">0</b></div>
       <div class="chip" id="powchip" style="color:var(--pu)"><span id="icPow"></span><span id="uiPow">0/0</span></div>
       <div class="chip" style="color:var(--bio)"><span id="icBio"></span><b id="uiBio">0</b></div>
+      <div class="chip" style="color:#ffd700"><span id="icCore"></span><b id="uiCore">0</b></div>
       <div class="chip"><span id="icWave"></span>WAVE <b id="uiWave">0</b></div>
       <div class="chip">SCORE <b id="uiScore">0</b></div>
     </div>
@@ -40,16 +41,24 @@
       </div>
     </div>
     <div id="resPanel" class="hidden"><div id="resInner">
-      <h2><span id="icRes2"></span>XENO R&amp;D LAB</h2>
-      <div class="sub">Spend <b style="color:var(--bio)">BIOMASS</b> harvested from elite and boss bugs. Upgrades persist for the whole shift. Press R or tap outside to close.</div>
-      <div id="resList"></div>
+      <h2><span id="icRes2"></span>XENO SPHERE GRID</h2>
+      <div class="sub">The center <b>NEXUS</b> is already active. Buy a <b>START</b> node on a colored spoke first. Gold <b>SYN</b> diamonds are cross-path synergies — unlock later. Drag to pan · scroll to zoom.</div>
+      <div id="resViewport">
+        <canvas id="resCanvas" width="1800" height="1080"></canvas>
+        <div id="resZoomCtrl">
+          <button type="button" class="btn" id="resZoomIn" title="Zoom in">+</button>
+          <button type="button" class="btn" id="resZoomOut" title="Zoom out">−</button>
+          <button type="button" class="btn" id="resZoomFit" title="Fit view">FIT</button>
+        </div>
+      </div>
+      <div id="resDetail"><span class="rd-empty dim">Tap a node on the grid to inspect and unlock it.</span></div>
     </div></div>
     <div id="overlay">
       <div id="ovsub">VOLTWORKS™ PEST CONTROL, LLC PRESENTS</div>
       <div id="ovtitle">GLORP<br>BUSTERS</div>
       <div id="ovbody">The GLORP are back, and this time they brought <em>armor plating</em>, <em>elite
         mutations</em>, and creeping <em>corruption goo</em> that eats your build space. Corporate
-        responded by approving an R&amp;D lab. Generous.<br><br>
+        responded by approving a Sphere Grid R&amp;D lab. Pick a path each run — schisms lock you in.<br><br>
         Maze them. Slow them. Strip their shells. Don't forget about air.
       </div>
       <div id="initialsPanel" class="hidden">
@@ -72,11 +81,12 @@
   </div>
   <div id="bottombar">
     <div id="buildbar"></div>
-    <div id="info"><h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Tap a placed turret to inspect/upgrade/sell. Space deploys. R opens R&amp;D.</span></div>
+    <div id="info"><h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Tap bugs for GOD HAND smite — upgrade on the Hand path (R&amp;D). Space deploys.</span></div>
   </div>
   <div id="ticker">VOLTWORKS™ — proudly frying bugs since the incident we don't discuss · the goo is not a beverage · R&amp;D is not liable for new limbs</div>
 </div>
 <script src="glorp-glyphs.js"></script>
+<script src="glorp-research.js"></script>
 <script src="glorp-busters.js"></script>
 </body>
 </html>
