@@ -5,8 +5,8 @@
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
-  font-family:"Verdana","Segoe UI",system-ui,sans-serif; overscroll-behavior:none;}
-#wrap{max-width:1100px;margin:0 auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
+  font-family:"Verdana","Segoe UI",system-ui,sans-serif; overscroll-behavior:none;overflow-x:hidden;}
+#wrap{width:min(100%,1100px);margin:0 auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
 .hudbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:6px;
@@ -92,6 +92,10 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
 #resPanel{position:absolute;inset:0;background:rgba(4,2,14,.92);z-index:5;display:flex;
   flex-direction:column;align-items:center;justify-content:center;padding:14px;}
 #resPanel.hidden{display:none;}
+#resClose{position:absolute;top:12px;right:12px;z-index:6;width:52px;height:52px;padding:0;
+  font-size:36px;line-height:1;font-weight:400;border-radius:10px;border-color:var(--bio);
+  color:var(--bio);background:rgba(8,4,24,.92);justify-content:center;}
+#resClose:hover{background:rgba(93,255,158,.18);box-shadow:0 0 18px rgba(93,255,158,.45);}
 #resInner{background:var(--panel);border:1px solid var(--bio);border-radius:10px;
   box-shadow:0 0 30px rgba(93,255,158,.25);padding:14px;max-width:1440px;width:100%;
   max-height:96%;overflow:auto;}
@@ -222,9 +226,13 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
   overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 #ticker b{color:var(--gr);}
 #mixPanel{position:absolute;top:8px;left:8px;z-index:5;background:rgba(8,4,24,.95);
-  border:1px solid var(--cy);border-radius:8px;padding:10px 12px;font-size:11px;
+  border:1px solid var(--cy);border-radius:8px;padding:10px 36px 10px 12px;font-size:11px;
   box-shadow:0 0 20px rgba(0,229,255,.25);min-width:230px;}
 #mixPanel.hidden{display:none;}
+#mixClose{position:absolute;top:6px;right:6px;z-index:1;width:44px;height:44px;padding:0;
+  font-size:32px;line-height:1;font-weight:400;border-radius:8px;border-color:var(--cy);
+  color:var(--cy);background:rgba(8,4,24,.92);justify-content:center;}
+#mixClose:hover{background:rgba(0,229,255,.18);box-shadow:0 0 18px rgba(0,229,255,.45);}
 #mixPanel h4{margin:0 0 6px;color:var(--cy);letter-spacing:1px;font-size:12px;}
 .mrow{display:flex;align-items:center;gap:8px;margin:3px 0;}
 .mrow label{width:54px;color:var(--dim);font-weight:700;letter-spacing:.5px;}
@@ -233,3 +241,112 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
 .mmode{display:flex;gap:4px;margin-top:6px;}
 .mmode button{flex:1;font-size:10px;padding:4px 2px;}
 .mmode button.on{background:rgba(0,229,255,.3);box-shadow:0 0 10px rgba(0,229,255,.5);}
+
+@media(max-width:760px){
+  #wrap{padding:6px;gap:6px;}
+  .hudbar,.chips,#bottombar,#buildbar{gap:5px;}
+  .chip{padding:4px 7px;font-size:11px;letter-spacing:.3px;}
+  .chip b{font-size:13px;}
+  .btn{padding:7px 10px;font-size:11px;letter-spacing:.7px;}
+  #buildbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;flex:1 1 100%;}
+  .card{min-width:0;padding:6px;}
+  .card .nm{font-size:10px;line-height:1.15;}
+  .card .cs{font-size:10px;}
+  #info{min-width:0;flex:1 1 100%;}
+  #ticker{font-size:10px;}
+}
+
+@media(max-width:420px){
+  .hudbar{justify-content:center;}
+  .chips{justify-content:center;}
+  #buildbar{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #overlay{gap:6px;padding:8px;overflow:auto;}
+  #ovtitle{font-size:clamp(20px,8vw,30px);letter-spacing:2px;}
+  #ovsub{font-size:9px;letter-spacing:1px;}
+  #ovbody{max-width:100%;font-size:10px;line-height:1.25;}
+  #btnStart{font-size:14px!important;padding:8px 18px!important;}
+  #leaderboard{display:none;}
+}
+
+@media(max-width:340px){
+  #overlay{justify-content:flex-start;}
+  #ovbody{display:none;}
+}
+
+@media(orientation:landscape) and (max-height:560px) and (max-width:960px){
+  #wrap{
+    width:100%;
+    max-width:none;
+    padding:4px;
+    gap:4px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(220px,32vw);
+    grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:
+      "hud hud"
+      "game controls";
+    align-items:start;
+  }
+  .hudbar{grid-area:hud;flex-wrap:nowrap;gap:4px;min-width:0;}
+  .hudbar .chips:first-child{
+    flex:1 1 auto;
+    min-width:0;
+    overflow-x:auto;
+    flex-wrap:nowrap;
+    scrollbar-width:none;
+  }
+  .hudbar .chips:first-child::-webkit-scrollbar{display:none;}
+  .hudbar .chips:last-child{flex:0 0 auto;flex-wrap:nowrap;}
+  .chip{padding:3px 6px;font-size:10px;letter-spacing:.2px;}
+  .chip b{font-size:12px;}
+  .chip svg{width:12px;height:12px;}
+  .btn{padding:5px 8px;font-size:10px;letter-spacing:.5px;}
+  #cvbox{
+    grid-area:game;
+    width:100%;
+    max-width:none;
+    align-self:start;
+  }
+  #bottombar{
+    grid-area:controls;
+    min-width:0;
+    flex-direction:column;
+    flex-wrap:nowrap;
+    align-items:stretch;
+    gap:5px;
+    overflow:visible;
+  }
+  #buildbar{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    flex:0 0 auto;
+    width:100%;
+    min-width:0;
+    gap:5px;
+  }
+  .card{min-width:0;padding:5px 6px;gap:2px;}
+  .card:hover{transform:none;}
+  .card .nm{font-size:9px;line-height:1.1;}
+  .card .cs{font-size:9px;}
+  #info{
+    flex:0 0 auto;
+    min-width:0;
+    padding:7px 8px;
+    font-size:11px;
+    line-height:1.35;
+  }
+  #info h3{font-size:12px;}
+  #ticker{display:none;}
+  #announce{top:6px;font-size:clamp(12px,3vw,18px);}
+  #overlay{padding:10px;gap:8px;}
+  #ovtitle{font-size:clamp(24px,7vw,42px);}
+  #ovsub{font-size:10px;}
+  #ovbody{max-width:min(460px,78vw);font-size:11px;line-height:1.35;}
+  #leaderboard{display:none;}
+  #resPanel{padding:8px;}
+  #resClose{top:8px;right:8px;width:44px;height:44px;font-size:30px;}
+  #resInner{padding:10px;max-height:100%;}
+  #resInner h2{font-size:14px;}
+  #resInner .sub{font-size:10px;margin-bottom:6px;}
+  #resDetail{min-height:68px;padding:8px 10px;}
+}

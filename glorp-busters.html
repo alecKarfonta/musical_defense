@@ -31,7 +31,9 @@
     <canvas id="cv" width="960" height="520"></canvas>
     <div id="announce"></div>
     <div id="mixPanel" class="hidden">
+      <button type="button" class="btn" id="mixClose" title="Close (Esc)" aria-label="Close Sound Lab">×</button>
       <h4>SOUND LAB <span style="color:var(--dim);font-weight:400">(~ to toggle)</span></h4>
+      <div class="mrow"><label>AUDIO</label><input type="checkbox" id="mixEnabled" checked></div>
       <div id="mixRows"></div>
       <div class="mrow"><label>HATS</label><input type="checkbox" id="mixHats"></div>
       <div class="mmode">
@@ -40,7 +42,9 @@
         <button class="btn" data-mm="0">SFX ONLY</button>
       </div>
     </div>
-    <div id="resPanel" class="hidden"><div id="resInner">
+    <div id="resPanel" class="hidden">
+      <button type="button" class="btn" id="resClose" title="Close (Esc)" aria-label="Close Sphere Grid">×</button>
+      <div id="resInner">
       <h2><span id="icRes2"></span>XENO SPHERE GRID</h2>
       <div class="sub">The center <b>NEXUS</b> is already active. Buy a <b>START</b> node on a colored spoke first. Gold <b>SYN</b> diamonds are cross-path synergies — unlock later. Drag to pan · scroll to zoom.</div>
       <div id="resViewport">

@@ -1,7 +1,28 @@
 # Glorp Busters — Notes
 
 ## Current goal
-Wave-tier music evolution — tone and intensity ramp in later rounds.
+Responsive game UI for phones, especially short widescreen/landscape viewports.
+
+## Sound Lab menu
+- SND button click/tap opens the mix panel (was right-click / long-press).
+- Big × close button in panel corner; Esc also closes.
+- Audio on/off moved to AUDIO checkbox inside the panel (SND opacity still reflects mute).
+
+## Multi-tower upgrade
+- Single-tap a turret to select it; double-tap selects all turrets of the same type and level.
+- Upgrade button (or `U`) upgrades as many selected turrets as credits allow, left-to-right in the selection list.
+- Multi-select shows count in info panel (`×N`), hides sell (single-select only). Selection outline + range rings on all selected.
+
+## Responsive UI pass
+- Keep the fixed 960x520 canvas coordinate system and scale the surrounding layout with CSS.
+- Small screens use tighter HUD chips, smaller buttons, and a grid build bar.
+- Phone landscape under 560px tall switches to a two-column layout: playfield left, build/info controls right, ticker hidden.
+- Avoid canvas letterboxing so pointer math based on `getBoundingClientRect()` stays aligned.
+
+## File URL render blocker
+- Opening `glorp-busters.html` directly from disk gives the page a `null` origin.
+- Browser CORS blocks `fetch("glyphs/*.svg")` from `file://`, so `loadGlyphs().then(boot)` never reaches `boot()`.
+- Glyph SVG bodies are now inline in `glorp-glyphs.js`; `loadGlyphs()` validates expected names without network/file fetches.
 
 ## Music tiers (wave)
 - **1–8**: D-minor triads, soft triangle pads, sparse bass.

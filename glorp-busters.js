@@ -220,7 +220,9 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 /* ================= STATE ================= */
 let grid, flow, towers, enemies, projs, parts, floaters, beams, cor, ice, turf;
 let credits, lives, wave, score, kills, bio, speedMul, state, soundOn=true;
-let buildSel=null, towerSel=null, hover=null, paused=false, endless=false;
+let buildSel=null, towerSels=[], hover=null, paused=false, endless=false;
+let lastTowerTap={t:0,c:-1,r:-1};
+const TOWER_DBL_MS=350;
 let spawnQ, spawnT, waveActive, waveSpawnTotal=0, waveMod=null, finaleFired=false;
 let shake=0, annT=0, time=0, corT=0;
 let powerCap=12, powerLoad=0, brown=1, overvoltMul=1;
@@ -237,7 +239,7 @@ function init(){
   for(let r=4;r<=8;r++){ cor[idx(0,r)]=1; if(r>=5&&r<=7) cor[idx(1,r)]=1; }
   towers=[]; enemies=[]; projs=[]; parts=[]; floaters=[]; beams=[];
   credits=230; lives=20; wave=0; score=0; kills=0; bio=6; speedMul=1;
-  buildSel=null; towerSel=null; spawnQ=[]; spawnT=0; waveActive=false; endless=false;
+  buildSel=null; towerSels=[]; lastTowerTap={t:0,c:-1,r:-1}; spawnQ=[]; spawnT=0; waveActive=false; endless=false;
   shake=0; corT=0; RS.reset();
   beatClock=0; schedBeat=0; barNum=0; killQ=0; runStep=0; muteUntilBeat=0; combo=0; comboT=0;
   waveSpawnTotal=0; waveMod=null; finaleFired=false; threatSmooth=0; threatLatched=0;
@@ -383,7 +385,30 @@ function tryPlace(c,r){
   }
   for(const e of enemies){ if(!e.air&&e.tc===c&&e.tr===r) e.hasT=false; }
   recalc(); sfxPlace(t); burst(t.x,t.y,d.col,10);
-  towerSel=t; refreshInfo();
+  towerSels=[t]; refreshInfo();
+}
+function upgradeableSel(){
+  if(!towerSels.length) return [];
+  const t0=towerSels[0];
+  if(t0.lvl>=3||t0.type==="wall") return [];
+  return towerSels.filter(t=>t.type===t0.type&&t.lvl===t0.lvl&&t.lvl<3&&t.type!=="wall");
+}
+function upgradeSelected(){
+  const eligible=upgradeableSel();
+  if(!eligible.length) return;
+  const cost=upCost(eligible[0]);
+  let n=0;
+  for(const t of eligible){
+    if(credits<cost) break;
+    credits-=cost; t.invested+=cost; t.lvl++;
+    burst(t.x,t.y,TDEF[t.type].col,16);
+    n++;
+  }
+  if(!n){ announce("UPGRADE DENIED: BROKE"); sfxNo(); return; }
+  towerSels=eligible.slice(0,n);
+  recalc(); refreshInfo(); sfxUp();
+  if(n>1) announce("UPGRADED "+n+" TURRETS");
+  else if(n<eligible.length) announce("UPGRADED "+n+"/"+eligible.length);
 }
 function sellTower(t){
   credits+=sellVal(t);
@@ -393,15 +418,8 @@ function sellTower(t){
   towers.splice(towers.indexOf(t),1);
   flow=computeFlow();
   for(const e of enemies) if(!e.air) e.hasT=false;
-  if(towerSel===t) towerSel=null;
+  towerSels=towerSels.filter(x=>x!==t);
   recalc(); refreshInfo(); burst(t.x,t.y,"#888",8); sfxSell();
-}
-function upgradeTower(t){
-  if(t.lvl>=3||t.type==="wall") return;
-  const c=upCost(t);
-  if(credits<c){ announce("UPGRADE DENIED: BROKE"); sfxNo(); return; }
-  credits-=c; t.invested+=c; t.lvl++;
-  recalc(); refreshInfo(); burst(t.x,t.y,TDEF[t.type].col,16); sfxUp();
 }
 
 /* ================= CORRUPTION (the goo) ================= */
@@ -1356,12 +1374,13 @@ function render(){
     ctx.globalAlpha=1;
   }
 
-  const selT=towerSel;
-  if(selT){
+  for(const selT of towerSels){
+    ctx.strokeStyle=TDEF[selT.type].col; ctx.lineWidth=2;
+    ctx.strokeRect(selT.x-CELL/2+1,selT.y-CELL/2+1,CELL-2,CELL-2);
     const st=tStats(selT);
     if(st.range>0){
-      ctx.strokeStyle=TDEF[selT.type].col; ctx.setLineDash([6,6]); ctx.lineWidth=1;
-      ctx.globalAlpha=0.6;
+      ctx.setLineDash([6,6]); ctx.lineWidth=1;
+      ctx.globalAlpha=towerSels.length>1?0.35:0.6;
       ctx.beginPath(); ctx.arc(selT.x,selT.y,st.range,0,Math.PI*2); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha=1;
     }
@@ -2109,28 +2128,43 @@ function refreshInfo(){
     RS.renderInfo($("resDetail"),"Detail");
     return;
   }
-  if(towerSel){
+  if(towerSels.length){
     el.classList.remove("place","cant-afford");
-    const t=towerSel, d=TDEF[t.type], st=tStats(t);
+    const t=towerSels[0], d=TDEF[t.type], st=tStats(t);
+    const n=towerSels.length, multi=n>1;
+    const cost=upCost(t), eligible=upgradeableSel();
+    const afford=eligible.length?Math.min(eligible.length,Math.floor(credits/cost)):0;
+    let upLbl="";
+    if(t.type!=="wall"&&t.lvl<3){
+      if(multi){
+        if(!afford) upLbl="UPGRADE 0/"+eligible.length;
+        else if(afford<eligible.length) upLbl="UPGRADE "+afford+"/"+eligible.length;
+        else upLbl="UPGRADE ALL ("+eligible.length+")";
+        upLbl+=" · "+cost+" CR ea";
+      }else upLbl="UPGRADE "+cost+" CR";
+    }
     const tags=t.tags.map(s=>'<span class="syn">'+s+'</span>').join("")||
       '<span class="syn none">no active synergies</span>';
     el.innerHTML='<div class="ihead"><h3 style="color:'+d.col+'">'+svgi(t.type,d.col,16)+" "+d.name+
+      (multi?'<span class="dim"> ×'+n+'</span>':'')+
       '</h3><span class="ilvl" style="color:'+d.col+'">L'+t.lvl+"</span></div>"+
       buildTowerStats(t,d,st)+
       '<div class="isynrow">'+tags+'</div>'+
+      (multi?'<span class="dim ihint">Double-tap matched type &amp; level · U upgrades all you can afford</span>':'')+
       '<div class="iacts row">'+
-      (t.type==="wall"?'':t.lvl<3?'<button class="btn" id="btnUp">'+svgi("cred","#ff9f1c",12)+" UPGRADE "+upCost(t)+" CR</button>":
+      (t.type==="wall"?'':t.lvl<3?'<button class="btn" id="btnUp">'+svgi("cred","#ff9f1c",12)+" "+upLbl+'</button>':
         '<span class="syn" style="border-color:#fff;color:#fff">MAX · '+d.l3+'</span>')+
-      '<button class="btn pk" id="btnSell">'+svgi("cred","#ff2079",12)+" SELL +"+sellVal(t)+" CR</button></div>";
-    const bu=$("btnUp"); if(bu) bu.onclick=()=>upgradeTower(t);
-    $("btnSell").onclick=()=>sellTower(t);
+      (multi?'':('<button class="btn pk" id="btnSell">'+svgi("cred","#ff2079",12)+" SELL +"+sellVal(t)+" CR</button>"))+
+      '</div>';
+    const bu=$("btnUp"); if(bu) bu.onclick=()=>upgradeSelected();
+    const bs=$("btnSell"); if(bs) bs.onclick=()=>sellTower(t);
   }else if(buildSel){
     el.classList.add("place");
     el.classList.toggle("cant-afford",credits<TDEF[buildSel].cost);
     el.innerHTML=buildPlacementPanel(buildSel);
   }else{
     el.classList.remove("place","cant-afford");
-    el.innerHTML='<h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Tap bugs directly for GOD HAND smite — upgrade it on the Hand path in R&amp;D. Turrets fire on the beat. Lasers crack plates. SPLAT clears goo. R opens the Sphere Grid.</span>';
+    el.innerHTML='<h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Double-tap a turret to select all of that type &amp; level — U upgrades as many as you can afford. Tap bugs for GOD HAND smite. Turrets fire on the beat. R opens the Sphere Grid.</span>';
   }
 }
 function buildCards(){
@@ -2146,7 +2180,7 @@ function buildCards(){
     c.onclick=()=>{
       if(buildSel===k){ buildSel=null; c.classList.remove("sel"); }
       else{
-        buildSel=k; towerSel=null;
+        buildSel=k; towerSels=[];
         document.querySelectorAll(".card").forEach(x=>x.classList.remove("sel"));
         c.classList.add("sel");
       }
@@ -2181,7 +2215,11 @@ cv.addEventListener("pointerdown",ev=>{
   const hit=enemyAtPixel(px,py);
   if(hit){ godSmite(hit); return; }
   const t=inB(c,r)?grid[idx(c,r)]:null;
-  towerSel=t||null;
+  const now=performance.now();
+  const dbl=t&&now-lastTowerTap.t<TOWER_DBL_MS&&lastTowerTap.c===c&&lastTowerTap.r===r;
+  lastTowerTap={t:now,c,r};
+  if(dbl) towerSels=towers.filter(x=>x.type===t.type&&x.lvl===t.lvl);
+  else towerSels=t?[t]:[];
   refreshInfo();
 });
 cv.addEventListener("contextmenu",ev=>{
@@ -2194,18 +2232,21 @@ window.addEventListener("keydown",ev=>{
   if(ev.code==="Space"){ ev.preventDefault(); deployWave(); }
   const n=parseInt(ev.key);
   if(n>=1&&n<=7){ $("card_"+TKEYS[n-1]).click(); }
-  if(ev.key==="u"&&towerSel) upgradeTower(towerSel);
-  if(ev.key==="x"&&towerSel) sellTower(towerSel);
+  if(ev.key==="u"&&towerSels.length) upgradeSelected();
+  if(ev.key==="x"&&towerSels.length===1) sellTower(towerSels[0]);
   if(ev.key==="r"||ev.key==="R") toggleResearch();
   if(ev.key==="`"||ev.key==="~"){ audio(); $("mixPanel").classList.toggle("hidden"); }
-  if(ev.key==="Escape"){ buildSel=null; towerSel=null; toggleResearch(false); $("mixPanel").classList.add("hidden");
+  if(ev.key==="Escape"){ buildSel=null; towerSels=[]; toggleResearch(false); $("mixPanel").classList.add("hidden");
     document.querySelectorAll(".card").forEach(x=>x.classList.remove("sel")); refreshInfo(); }
 });
 $("btnWave").onclick=()=>{ audio(); deployWave(); };
 $("btnSpeed").onclick=()=>{ speedMul=speedMul===1?2:speedMul===2?3:1; $("btnSpeed").textContent=speedMul+"×"; reanchor(); };
-$("btnSound").onclick=()=>{ soundOn=!soundOn; if(!soundOn){ stopAllVoices(); useAC=false; } else reanchor(); $("btnSound").style.opacity=soundOn?1:0.4; };
-$("btnSound").oncontextmenu=ev=>{ ev.preventDefault(); audio(); $("mixPanel").classList.toggle("hidden"); }; // long-press / right-click SND = mixer
+function syncSoundBtn(){ $("btnSound").style.opacity=soundOn?1:0.4; if($("mixEnabled")) $("mixEnabled").checked=soundOn; }
+function setSoundOn(on){ soundOn=on; if(!soundOn){ stopAllVoices(); useAC=false; } else reanchor(); syncSoundBtn(); }
+$("btnSound").onclick=()=>{ audio(); $("mixPanel").classList.remove("hidden"); };
+$("mixClose").onclick=()=>{ audio(); $("mixPanel").classList.add("hidden"); };
 $("btnRes").onclick=()=>{ audio(); toggleResearch(); };
+$("resClose").onclick=()=>{ audio(); toggleResearch(false); };
 $("resPanel").addEventListener("pointerdown",ev=>{ if(ev.target===$("resPanel")) toggleResearch(false); });
 $("btnStart").onclick=async ()=>{
   if(pendingScore) return;
@@ -2249,6 +2290,8 @@ function buildMixer(){
     };
     rows.appendChild(row);
   }
+  $("mixEnabled").onchange=()=>{ setSoundOn($("mixEnabled").checked); };
+  syncSoundBtn();
   $("mixHats").onchange=()=>{ hatsOn=$("mixHats").checked; };
   document.querySelectorAll("#mixPanel [data-mm]").forEach(b=>{
     b.onclick=()=>{
@@ -2263,7 +2306,7 @@ buildMixer();
 /* ================= MAIN LOOP & PLAYABLES LIFECYCLE ================= */
 if(YT){
   try{ YT.system.onPause(()=>{paused=true; stopAllVoices();}); YT.system.onResume(()=>{paused=false;}); }catch(e){}
-  try{ soundOn=YT.system.isAudioEnabled(); YT.system.onAudioEnabledChange(v=>{soundOn=v; if(!v) stopAllVoices();}); }catch(e){}
+  try{ setSoundOn(YT.system.isAudioEnabled()); YT.system.onAudioEnabledChange(v=>{ setSoundOn(v); if(!v) stopAllVoices(); }); }catch(e){}
 }
 let last=performance.now(), firstFrame=false;
 function loop(now){
