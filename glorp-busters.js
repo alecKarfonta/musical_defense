@@ -194,8 +194,19 @@ const AFFIX={
   shrieker:{nm:"SHRIEKER", col:"#ff5050", tip:"EMPs nearby turrets on death"},
   juker:   {nm:"JUKER",    col:"#ffe14d", tip:"periodic speed bursts"},
   mender:  {nm:"MENDER",   col:"#5dff9e", tip:"heals nearby bugs"},
+  gooseed: {nm:"GOOSEED",  col:"#9dff6a", tip:"Trails goo; death splatters corruption"},
+  siphon:  {nm:"SIPHON",   col:"#c77dff", tip:"Drains nearby turret damage"},
+  armorer: {nm:"ARMORER",  col:"#e8e8f8", tip:"Plates unarmored allies"},
+  phase:   {nm:"PHASE",    col:"#88ccff", tip:"Phases out of ground-only fire"},
 };
 const AFFKEYS=["shrieker","juker","mender"];
+const WAVE_MODS={
+  surge:   {nm:"SWARM SURGE",    tip:"Spawn timer crushed"},
+  blackout:{nm:"GRID BLACKOUT",  tip:"Power cap −18% this wave"},
+  goostorm:{nm:"GOO STORM",      tip:"Corruption spreads twice as fast"},
+  elite:   {nm:"ELITE BRIGADE",  tip:"Every spawn rolls elite"},
+  airraid: {nm:"AIR RAID",       tip:"Neon wasps mixed into the assault"},
+};
 
 const RES=[
  {id:"dmg",  nm:"HOTTER PLASMA",    desc:"+10% global damage per tier",            max:3, cost:[6,12,20]},
@@ -219,7 +230,7 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 let grid, flow, towers, enemies, projs, parts, floaters, beams, cor;
 let credits, lives, wave, score, kills, bio, speedMul, state, soundOn=true;
 let buildSel=null, towerSel=null, hover=null, paused=false, endless=false;
-let spawnQ, spawnT, waveActive, waveSpawnTotal=0;
+let spawnQ, spawnT, waveActive, waveSpawnTotal=0, waveMod=null;
 let shake=0, annT=0, time=0, corT=0;
 let powerCap=12, powerLoad=0, brown=1;
 let res={};
@@ -234,7 +245,7 @@ function init(){
   buildSel=null; towerSel=null; spawnQ=[]; spawnT=0; waveActive=false; endless=false;
   shake=0; corT=0; res={}; for(const x of RES) res[x.id]=0;
   beatClock=0; schedBeat=0; barNum=0; killQ=0; runStep=0; muteUntilBeat=0; combo=0; comboT=0;
-  waveSpawnTotal=0; threatSmooth=0; threatLatched=0; reanchor();
+  waveSpawnTotal=0; waveMod=null; threatSmooth=0; threatLatched=0; reanchor();
   flow=computeFlow(); recalc(); refreshUI(); refreshInfo(); renderResearch();
   document.getElementById("btnSpeed").textContent="1×";
 }
@@ -264,7 +275,8 @@ function recalc(){
     if(t.type==="amp") powerCap+=TDEF.amp.gen[t.lvl-1];
     else powerLoad+=TDEF[t.type].power;
   }
-  brown = powerLoad>powerCap ? Math.max(0.4,powerCap/powerLoad) : 1;
+  const effCap=(waveActive&&waveMod==="blackout")?powerCap*0.82:powerCap;
+  brown = powerLoad>effCap ? Math.max(0.35,effCap/powerLoad) : 1;
   for(const t of towers){
     t.buff=1; t.rateMul=1; t.shatter=false; t.rampMul=1; t.tags=[];
     let ampN=0;
@@ -291,10 +303,19 @@ function makeTower(type,c,r){
   return {type,c,r,lvl:1,cd:0,cdB:0,ramp:0,target:null,buff:1,rateMul:1,rampMul:1,shatter:false,emp:0,
           novaCd:0,x:c*CELL+CELL/2,y:r*CELL+CELL/2,invested:TDEF[type].cost,tags:[],anim:Math.random()*9,voice:null};
 }
+function siphonDebuff(t){
+  let mul=1;
+  for(const e of enemies){
+    if(e.dead||e.affix!=="siphon") continue;
+    const dx=e.x-t.x, dy=e.y-t.y;
+    if(dx*dx+dy*dy<=78*78) mul*=0.84;
+  }
+  return Math.max(0.48,mul);
+}
 function tStats(t){
   const d=TDEF[t.type], m=Math.pow(1.6,t.lvl-1);
   return {
-    dmg:d.dmg*m*t.buff*(1+0.1*res.dmg),
+    dmg:d.dmg*m*t.buff*(1+0.1*res.dmg)*siphonDebuff(t),
     range:d.range*Math.pow(1.12,t.lvl-1),
     rate:(d.rate||0)*Math.pow(1.1,t.lvl-1)*t.rateMul*brown,
     splash:d.splash ? d.splash*(t.lvl>=3?1.35:1) : 0,
@@ -357,7 +378,8 @@ function upgradeTower(t){
 function corStep(){
   // count corrupted, cap total spread at ~35% of cells
   let total=0; for(let i=0;i<cor.length;i++) if(cor[i]>=0.5) total++;
-  if(total>COLS*ROWS*0.35) return;
+  const capPct=0.35+lateWaveT(wave)*0.006;
+  if(total>COLS*ROWS*capPct) return;
   const frontier=[];
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const i=idx(c,r);
@@ -396,26 +418,43 @@ function hpMul(n){
   const base=Math.pow(1.135,n-1)*(1+n*0.03);
   const t=lateWaveT(n);
   if(!t) return base;
-  return base*(1+t*0.075)*Math.pow(1.07,t);
+  return base*(1+t*0.06)*Math.pow(1.055,t);
 }
 function eliteChance(n){
   if(n<6) return 0;
   if(n<=11) return Math.min(0.16,0.03+n*0.007);
-  return Math.min(0.34,0.13+(n-11)*0.014);
+  return Math.min(0.32,0.12+(n-11)*0.012);
+}
+function pickAffix(){
+  if(wave<12) return pick(AFFKEYS);
+  const r=Math.random();
+  if(r<0.12) return "gooseed";
+  if(r<0.24) return "siphon";
+  if(r<0.36) return "armorer";
+  if(r<0.48) return "phase";
+  return pick(AFFKEYS);
+}
+function spawnAt(type,x,y,c,r){
+  spawnEnemy(type);
+  const e=enemies[enemies.length-1];
+  e.x=x; e.y=y; e.c=c; e.r2=r;
+  if(e.air) e.ty=EXIT.r*CELL+CELL/2;
+  else{ e.hasT=false; e.tc=c; e.tr=r; e.tx=x; e.tyy=y; }
 }
 function spawnEnemy(type,forceElite){
   const d=EDEF[type], m=hpMul(wave);
-  const spdBoost=lateWaveT(wave)?1+lateWaveT(wave)*0.014:1;
-  const e={type, nm:d.nm, hp:d.hp*m, maxhp:d.hp*m, spd:d.spd*spdBoost, bounty:d.bounty+Math.floor(wave/3),
-    r:d.r, col:d.col, air:!!d.air, boss:!!d.boss, slowFloor:d.slowFloor||0,
+  const spdBoost=lateWaveT(wave)?1+lateWaveT(wave)*0.012:1;
+  const e={type, nm:d.nm, hp:d.hp*m, maxhp:d.hp*m, spd:d.spd*spdBoost, baseSpd:d.spd*spdBoost,
+    bounty:d.bounty+Math.floor(wave/3), r:d.r, col:d.col, air:!!d.air, boss:!!d.boss, slowFloor:d.slowFloor||0,
     split:d.split||0, slowMul:1, slowT:0, burnT:0, burnD:0, dead:false, exposed:false,
     plateHp:d.plate?d.plate*m:0, plateMax:d.plate?d.plate*m:0,
-    affix:null, jukeT:0, jukeOn:0,
+    affix:null, jukeT:0, jukeOn:0, armCd:1.2+Math.random(), phaseT:0.6+Math.random()*0.5,
+    phaseOn:false, rampageT:0, spawnCd:d.boss?5:0,
     wob:Math.random()*9, x:-30-Math.random()*40, y:0, c:SPAWN.c, r2:SPAWN.r, hasT:false};
   // elites: wave 6+, ramping chance, never bosses
   if(!e.boss&&(forceElite||(wave>=6&&Math.random()<eliteChance(wave)))){
-    e.affix=pick(AFFKEYS);
-    e.hp*=2.2; e.maxhp=e.hp; e.bounty*=3; e.r*=1.2;
+    e.affix=pickAffix();
+    e.hp*=2.0; e.maxhp=e.hp; e.bounty*=3; e.r*=1.15;
     if(e.plateHp){ e.plateHp*=1.6; e.plateMax=e.plateHp; }
   }
   if(e.air){
@@ -454,11 +493,13 @@ function plateBreak(e){
   e.plateHp=0; e.exposed=true;
   burst(e.x,e.y,"#ffffff",18); shake=Math.max(shake,5);
   floaters.push({x:e.x,y:e.y-e.r-6,t:1.0,txt:pick(QUIPS.crack),col:"#fff"});
+  if(e.type==="chonk"){ e.rampageT=2.4; e.spd=e.baseSpd*1.75; }
   sfxCrack();
 }
 function hurt(e,dmg,o={}){
   if(e.dead) return;
   let d=dmg;
+  if(e.affix==="phase"&&e.phaseOn&&o.grdOnly) d*=0.08;
   if(e.plateHp>0){
     const strip=o.beam?3:(o.kind==="splat"?1.6:1);
     e.plateHp-=d*strip;
@@ -495,6 +536,15 @@ function kill(e){
       if(dx*dx+dy*dy<=90*90&&t.type!=="amp"&&t.type!=="wall"){ t.emp=2.5; t.target=null; t.ramp=0; laserOff(t); }
     }
   }
+  if(e.affix==="gooseed"){
+    const cc=Math.floor(e.x/CELL), rr=Math.floor(e.y/CELL);
+    for(let dc=-2;dc<=2;dc++)for(let dr=-2;dr<=2;dr++){
+      const c=cc+dc,r=rr+dr;
+      if(inB(c,r)&&!grid[idx(c,r)]&&!(c===EXIT.c&&r===EXIT.r))
+        cor[idx(c,r)]=Math.min(1,cor[idx(c,r)]+0.65);
+    }
+    ring(e.x,e.y,70,"#9dff6a");
+  }
   if(e.split){
     for(let i=0;i<e.split;i++){
       const g=EDEF.grub, m=hpMul(wave)*0.55;
@@ -511,29 +561,44 @@ function kill(e){
 function buildWave(n){
   const q=[];
   const t=lateWaveT(n);
-  const cnt=c=>t?Math.ceil(c*(1+t*0.12)):c;
-  const gap=g=>t?g/(1+t*0.06):g;
+  const cnt=c=>t?Math.ceil(c*(1+t*0.08)):c;
+  const gap=g=>t?g/(1+t*0.04):g;
   const push=(type,c,g)=>{ for(let i=0;i<cnt(c);i++) q.push({t:type,gap:gap(g)}); };
   if(n%10===0){
     push("boss",Math.ceil(n/10),t?Math.max(1.6,3.0-t*0.07):3.0);
     push("grub",10+n,0.45);
     if(n>=20) push("chonk",Math.floor(n/4),1.1);
-    if(n>=20) push("skit",Math.floor(n*0.65),0.32);
-    if(n>=25) push("brood",Math.floor(n/3),0.95);
+    if(n>=20) push("skit",Math.floor(n*0.5),0.35);
+    if(n>=25) push("brood",Math.floor(n/4),1.0);
     announce(pick(QUIPS.boss));
   }else if(n%4===0){
     push("wasp",5+n,0.5);
     push("grub",6+(t?Math.floor(t*1.5):0),0.5);
     if(n>=12) push("skit",n,0.3);
-    if(n>=18) push("chonk",Math.floor(n/5),0.85);
+    if(n>=20) push("chonk",Math.floor(n/6),0.9);
   }else{
     push("grub",8+Math.floor(n*1.35),0.5);
     if(n>=3)  push("skit",Math.floor(n*1.15),0.33);
     if(n>=6)  push("brood",Math.floor(n/2),1.1);
     if(n>=9)  push("chonk",Math.floor(n/3),1.25);
     if(n>=13) push("wasp",Math.floor(n/2),0.7);
-    if(n>=16) push("brood",Math.floor(n/3),0.9);
-    if(n>=22) push("chonk",Math.floor(n/4),1.0);
+    if(n>=18) push("brood",Math.floor(n/4),1.0);
+  }
+  return q;
+}
+function pickWaveMod(n){
+  if(n<13||n%10===0) return null;
+  if(Math.random()>0.55) return null;
+  return pick(Object.keys(WAVE_MODS));
+}
+function applyWaveMod(q,n){
+  if(!waveMod) return q;
+  if(waveMod==="surge") return q.map(s=>({t:s.t,gap:s.gap*0.62,elite:s.elite}));
+  if(waveMod==="elite") return q.map(s=>({t:s.t,gap:s.gap,elite:true}));
+  if(waveMod==="airraid"){
+    const extra=[];
+    for(let i=0;i<Math.max(4,Math.floor(n*0.35));i++) extra.push({t:"wasp",gap:0.42});
+    return extra.concat(q);
   }
   return q;
 }
@@ -544,15 +609,21 @@ function deployWave(){
   const bp=((beatClock%4)+4)%4;
   if(bp<0.25||bp>3.75){ credits+=15; floaters.push({x:W/2,y:46,t:1.2,txt:"DOWNBEAT DROP +15 CR",col:"#ff2079"}); }
   wave++;
-  spawnQ=buildWave(wave);
+  waveMod=pickWaveMod(wave);
+  spawnQ=applyWaveMod(buildWave(wave),wave);
   waveSpawnTotal=spawnQ.length;
   spawnT=0.3; waveActive=true;
   reanchor(); // BPM steps up per wave: re-lock the clock mapping
-  if(wave%10!==0) announce(pick(QUIPS.wave)+" — WAVE "+wave);
+  if(wave%10!==0){
+    const mod=waveMod?WAVE_MODS[waveMod]:null;
+    announce(pick(QUIPS.wave)+" — WAVE "+wave+(mod?" · "+mod.nm:""));
+    if(mod) floaters.push({x:W/2,y:62,t:1.6,txt:mod.tip,col:"#ffd700"});
+  }
   refreshUI(); sfxWave();
 }
 function waveCleared(){
   waveActive=false;
+  waveMod=null;
   const bonus=25+wave*5;
   credits+=bonus; score+=bonus; bio+=2;
   announce(pick(QUIPS.clear)+"  +"+bonus+" CR");
@@ -588,6 +659,7 @@ function acquire(t,st){
     if(e.dead) continue;
     if(e.air&&!d.air) continue;
     if(!e.air&&!d.grd) continue;
+    if(e.affix==="phase"&&e.phaseOn&&!d.air) continue;
     const dx=e.x-t.x, dy=e.y-t.y;
     if(dx*dx+dy*dy>st.range*st.range) continue;
     const p=e.air ? e.x : -(flow[idx(e.c,e.r2)]??999)*100 + e.x;
@@ -648,7 +720,7 @@ function impact(p){
       if(e.dead||e.air) continue;
       const dx=e.x-p.x, dy=e.y-p.y, q=Math.sqrt(dx*dx+dy*dy);
       if(q<=p.splash){
-        hurt(e,d*(1-0.5*q/p.splash),{shatter:p.shatter,col:p.col,kind:"splat"});
+        hurt(e,d*(1-0.5*q/p.splash),{shatter:p.shatter,col:p.col,kind:"splat",grdOnly:true});
         if(p.burn){ e.burnT=2; e.burnD=6*hpMul(wave)*0.3+4; }
       }
     }
@@ -694,7 +766,7 @@ function update(dt){
     spawnT-=dt;
     if(spawnT<=0){
       const s=spawnQ.shift();
-      spawnEnemy(s.t);
+      spawnEnemy(s.t,s.elite);
       spawnT=s.gap;
     }
   }
@@ -702,7 +774,8 @@ function update(dt){
   // corruption
   if(waveActive){
     corT+=dt;
-    if(corT>1.4){ corT=0; corStep(); }
+    const corIV=(waveMod==="goostorm")?0.88:1.4;
+    if(corT>corIV){ corT=0; corStep(); }
   }
   corPurge(dt);
 
@@ -726,11 +799,56 @@ function update(dt){
       }
       if(Math.random()<0.25) parts.push({x:e.x,y:e.y-e.r,vx:0,vy:-22,t:0.5,col:"#5dff9e",sz:2});
     }
+    if(e.affix==="armorer"){
+      e.armCd-=dt;
+      if(e.armCd<=0){
+        e.armCd=3.0;
+        let ally=null, bd=88*88;
+        for(const o of enemies){
+          if(o.dead||o===e||o.plateHp>0||o.boss) continue;
+          const dx=o.x-e.x, dy=o.y-e.y, q=dx*dx+dy*dy;
+          if(q<bd){ bd=q; ally=o; }
+        }
+        if(ally){
+          const plate=ally.maxhp*0.3;
+          ally.plateHp=plate; ally.plateMax=plate;
+          ring(ally.x,ally.y,ally.r+10,"#e8e8f8");
+        }
+      }
+    }
+    if(e.affix==="phase"){
+      e.phaseT-=dt;
+      if(e.phaseT<=0){
+        e.phaseOn=!e.phaseOn;
+        e.phaseT=e.phaseOn?1.0:1.6+Math.random()*0.6;
+      }
+    }
+    if(e.affix==="gooseed"&&!e.air){
+      const ci=Math.floor(e.x/CELL), ri=Math.floor(e.y/CELL);
+      if(inB(ci,ri)&&!grid[idx(ci,ri)]&&!(ci===EXIT.c&&ri===EXIT.r))
+        cor[idx(ci,ri)]=Math.min(1,cor[idx(ci,ri)]+dt*0.48);
+    }
+    if(e.boss){
+      e.spawnCd-=dt;
+      if(e.spawnCd<=0){
+        const lowHp=e.hp/e.maxhp<0.42;
+        e.spawnCd=lowHp?5.8:10;
+        if(lowHp){
+          spawnAt(Math.random()<0.55?"skit":"grub",e.x+Math.random()*18-9,e.y+Math.random()*12-6,e.c,e.r2);
+          if(Math.random()<0.3) floaters.push({x:e.x,y:e.y-e.r-20,t:0.85,txt:"MEGAGLORP SPAWNS",col:"#ff3864"});
+        }
+      }
+    }
+    if(e.rampageT>0){
+      e.rampageT-=dt;
+      if(e.rampageT<=0) e.spd=e.baseSpd;
+      else aMul=Math.max(aMul,2.1);
+    }
     // goo speeds up bugs standing on it
     let gMul=1;
     if(!e.air){
       const ci=Math.floor(e.x/CELL), ri=Math.floor(e.y/CELL);
-      if(inB(ci,ri)&&cor[idx(ci,ri)]>=0.5) gMul=1.2;
+      if(inB(ci,ri)&&cor[idx(ci,ri)]>=0.5) gMul=1.15+lateWaveT(wave)*0.02;
     }
     const sp=e.spd*e.slowMul*aMul*gMul*dt;
     if(e.air){
@@ -983,14 +1101,15 @@ function render(){
     const [c,r]=hover, x=c*CELL+CELL/2, y=r*CELL+CELL/2;
     const d=TDEF[buildSel];
     const bad=!inB(c,r)||grid[idx(c,r)]||(c===SPAWN.c&&r===SPAWN.r)||(c===EXIT.c&&r===EXIT.r)||credits<d.cost||(inB(c,r)&&cor[idx(c,r)]>=0.5);
-    ctx.globalAlpha=0.45;
-    ctx.fillStyle=bad?"#ff2050":d.col;
-    ctx.fillRect(c*CELL+3,r*CELL+3,CELL-6,CELL-6);
+    drawTower({type:buildSel,x,y,lvl:1,emp:0,anim:time*2});
+    if(bad){
+      ctx.strokeStyle="#ff2050"; ctx.lineWidth=2;
+      ctx.strokeRect(c*CELL+2,r*CELL+2,CELL-4,CELL-4);
+    }
     if(d.range>0){
       ctx.strokeStyle=bad?"#ff2050":d.col; ctx.lineWidth=1; ctx.setLineDash([5,5]);
       ctx.beginPath(); ctx.arc(x,y,d.range,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     }
-    ctx.globalAlpha=1;
   }
 }
 function drawTower(t){
@@ -1051,6 +1170,7 @@ function drawTower(t){
 function drawEnemy(e){
   const wob=Math.sin(time*8+e.wob);
   const x=e.x, y=e.y+(e.air?0:wob*1.5), r=e.r*(1+wob*0.06);
+  if(e.affix==="phase"&&e.phaseOn) ctx.globalAlpha=0.38;
   glow(e.col,e.boss?22:10);
   ctx.fillStyle=e.col;
   if(e.air){
@@ -1085,6 +1205,11 @@ function drawEnemy(e){
   ctx.beginPath(); ctx.arc(x+r*0.35,y-r*0.25,r*0.28,0,Math.PI*2); ctx.arc(x-r*0.1,y-r*0.3,r*0.22,0,Math.PI*2); ctx.fill();
   ctx.fillStyle="#000";
   ctx.beginPath(); ctx.arc(x+r*0.42,y-r*0.22,r*0.12,0,Math.PI*2); ctx.arc(x-r*0.05,y-r*0.27,r*0.1,0,Math.PI*2); ctx.fill();
+  if(e.affix==="siphon"){
+    glow("#c77dff",6); ctx.strokeStyle="#c77dff"; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.arc(x,y,r+11,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); noglow();
+  }
+  ctx.globalAlpha=1;
   // elite spike ring + label
   if(e.affix){
     const ac=AFFIX[e.affix].col;
@@ -1131,7 +1256,7 @@ const PROG=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]]; // i, VI, III, VII (semitone
 let beatClock=0, barCrossed=false, barNum=0, schedBeat=0, shotHeat=0;
 let anchorAC=0, anchorBeat=0, useAC=false, muteUntilBeat=0, killQ=0, runStep=0;
 let threatRaw=0, threatSmooth=0, threatLatched=0;
-let musicMode=1, hatsOn=false; // default: MINIMAL (pads+events). 2=FULL groove, 0=SFX-only
+let musicMode=2, hatsOn=false; // default: FULL groove. 1=MINIMAL (pads+events), 0=SFX-only
 function syncDelayTime(){
   if(AC&&FX) FX.dl.delayTime.setTargetAtTime(SPBnow()*0.75/Math.max(1,speedMul),AC.currentTime,0.08);
 }
@@ -1433,28 +1558,45 @@ function sfxKill(e){
   killQ=Math.min(killQ+1,4);          // each kill queues one 16th of the rising run
   pend.kill++;                        // pops are pooled per frame in flushShots
 }
-/* laser drones, tuned to the live chord, pitch rides the damage ramp */
+/* laser drones: locked chord tone; ramp = louder + hotter harmonic + bite */
+function laserCap(t){ return t.lvl>=3?3:1.5; }
 function laserOn(t){
   if(!soundOn||!audio()||AC.state!=="running"||t.voice) return;
-  const o=AC.createOscillator(), g=AC.createGain();
-  o.type="triangle"; o.frequency.value=chzS(towerDeg(t),0);
-  g.gain.value=0.0001;
-  o.connect(g); g.connect(BUS.lead.g);
-  if(FX){ const s=AC.createGain(); s.gain.value=0.3; g.connect(s); s.connect(FX.rsend); }
-  o.start(); t.voice={o,g};
+  const a=AC, now=a.currentTime;
+  const base=chzS(towerDeg(t),0);
+  const o1=a.createOscillator(), o2=a.createOscillator();
+  const heat=a.createGain(), f=a.createBiquadFilter(), g=a.createGain();
+  o1.type="sine"; o2.type="sine";
+  o1.frequency.value=base; o2.frequency.value=base*2;
+  heat.gain.value=0.0001;
+  f.type="lowpass"; f.frequency.value=950; f.Q.value=0.85;
+  g.gain.setValueAtTime(0.0001,now);
+  g.gain.exponentialRampToValueAtTime(0.0035,now+0.05);
+  o1.connect(f); o2.connect(heat); heat.connect(f); f.connect(g); g.connect(BUS.lead.g);
+  if(FX){ const ds=a.createGain(); ds.gain.value=0.07; g.connect(ds); ds.connect(FX.dsend); }
+  o1.start(now); o2.start(now);
+  t.voice={o1,o2,heat,f,g,base};
 }
 function laserTune(t){
   if(!t.voice||!AC) return;
-  const f=chzS(towerDeg(t),0)*(1+t.ramp*0.5);
-  t.voice.o.frequency.setTargetAtTime(f,AC.currentTime,0.05);
-  try{ t.voice.o.detune.setTargetAtTime(corLevel()*22*Math.sin(time*3),AC.currentTime,0.08); }catch(e){}
+  const v=t.voice, now=AC.currentTime;
+  const r=Math.min(1,t.ramp/laserCap(t));
+  v.o1.frequency.setValueAtTime(v.base,now);
+  v.o2.frequency.setValueAtTime(v.base*2,now);
+  v.heat.gain.setTargetAtTime(0.0001+r*0.26,now,0.12);
+  v.f.frequency.setTargetAtTime(950+r*650,now,0.14);
+  v.f.Q.setTargetAtTime(0.85+r*1.0,now,0.14);
   let nd=0; for(const x of towers) if(x.voice) nd++;
-  t.voice.g.gain.setTargetAtTime((0.011+t.ramp*0.006)/Math.sqrt(Math.max(1,nd)),AC.currentTime,0.05);
+  v.g.gain.setTargetAtTime((0.0035+r*0.012)/Math.sqrt(Math.max(1,nd)),now,0.1);
 }
 function laserOff(t){
   if(!t.voice||!AC){ t.voice=null; return; }
   const v=t.voice; t.voice=null;
-  try{ v.g.gain.setTargetAtTime(0.0001,AC.currentTime,0.04); v.o.stop(AC.currentTime+0.25); }catch(e){}
+  try{
+    const now=AC.currentTime;
+    v.g.gain.setTargetAtTime(0.0001,now,0.04);
+    v.o1.stop(now+0.2); v.o2.stop(now+0.2);
+  }catch(e){}
 }
 function stopAllVoices(){ for(const t of towers) laserOff(t); }
 
@@ -1464,6 +1606,12 @@ function announce(txt){
   const el=$("announce");
   el.textContent=txt; el.classList.add("show");
   annT=2.2;
+}
+function syncBuildSel(){
+  if(!buildSel||credits>=TDEF[buildSel].cost) return false;
+  buildSel=null;
+  document.querySelectorAll(".card").forEach(x=>x.classList.remove("sel"));
+  return true;
 }
 function refreshUI(){
   $("uiCred").textContent=credits;
@@ -1482,6 +1630,7 @@ function refreshUI(){
     const card=$("card_"+k);
     if(card) card.classList.toggle("cant",credits<TDEF[k].cost);
   }
+  if(syncBuildSel()) refreshInfo();
 }
 function iIco(name,col,size){
   return svgi(name,col,size||12).replace("<svg ","<svg class=\"istat-ico\" ");
@@ -1519,6 +1668,7 @@ function buildTowerStats(t,d,st){
   return '<div class="istats">'+s.join("")+"</div>";
 }
 function refreshInfo(){
+  syncBuildSel();
   const el=$("info");
   if(towerSel){
     const t=towerSel, d=TDEF[t.type], st=tStats(t);

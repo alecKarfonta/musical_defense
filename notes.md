@@ -1,7 +1,26 @@
 # Glorp Busters — project notes
 
 ## Current goal
+Late-game difficulty via unique mechanics (wave 12+): wave modifiers + new elite affixes, not just stat bloat.
+
+### Wave modifiers (random waves 12–29, not boss)
+SWARM SURGE · GRID BLACKOUT · GOO STORM · ELITE BRIGADE · AIR RAID
+
+### New elite affixes (wave 12+)
+GOOSEED (trail + death goo) · SIPHON (drain nearby turret damage) · ARMORER (plate allies) · PHASE (dodge ground-only)
+
+### Other late pressure
+Chonk rampage, Megaglorp adds, scaling goo speed/corruption cap.
+
+### Difficulty dial-in (latest)
+~25% softer late curve: lower HP/speed/spawn scaling, fewer bonus wave spawns, elites 32% cap, wave mods from w13 at 45% chance with milder effects, weaker affix pressure (gooseed/armorer/chonk/boss).
+
+## Also in flight
 Leaderboard with localStorage persistence + classic arcade HIGH SCORES panel; initials entry on qualifying runs.
+
+## UI
+- Turret placement preview: full opaque `drawTower` glyph (not faded color block); red cell outline when placement invalid.
+- Build selection auto-clears via `syncBuildSel()` when credits drop below selected turret cost (placement, upgrade, etc.).
 
 ## Leaderboard
 - Top 10 by score in `localStorage` key `glorpBustersLb`; merged with YouTube `loadData` on boot
