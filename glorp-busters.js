@@ -2031,7 +2031,7 @@ function refreshUI(){
   bw.disabled=!(state==="play"&&(!waveActive||spawnQ.length===0));
   bw.textContent= state!=="play" ? "DEPLOY WAVE" :
     (waveActive&&spawnQ.length>0) ? "WAVE INBOUND…" :
-    enemies.length>0 ? "DEPLOY EARLY (+"+(10+wave*2)+" CR)" : "DEPLOY WAVE "+(wave+1);
+    enemies.length>0 ? "EARLY +"+(10+wave*2)+" CR" : "DEPLOY WAVE "+(wave+1);
   for(const k of TKEYS){
     const card=$("card_"+k);
     if(card) card.classList.toggle("cant",credits<TDEF[k].cost);

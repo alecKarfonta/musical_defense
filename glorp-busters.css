@@ -25,6 +25,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
 .btn.pk:hover{background:rgba(255,32,121,.22);box-shadow:0 0 14px rgba(255,32,121,.5);}
 .btn.bio{border-color:var(--bio);color:var(--bio);background:rgba(93,255,158,.08);}
 .btn.bio:hover{background:rgba(93,255,158,.22);box-shadow:0 0 14px rgba(93,255,158,.5);}
+#btnWave{white-space:nowrap;flex-shrink:0;}
 #cvbox{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;
   box-shadow:0 0 30px rgba(60,20,160,.35), inset 0 0 60px rgba(0,0,0,.6);}
 #cv{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;background:#070312;}
