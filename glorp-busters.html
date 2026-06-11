@@ -63,10 +63,10 @@
     <div id="overlay">
       <div id="ovsub">VOLTWORKS™ PEST CONTROL, LLC PRESENTS</div>
       <div id="ovtitle">GLORP<br>BUSTERS</div>
-      <div id="ovbody">The GLORP are back, and this time they brought <em>armor plating</em>, <em>elite
-        mutations</em>, and creeping <em>corruption goo</em> that eats your build space. Corporate
-        responded by approving a Sphere Grid R&amp;D lab. Pick a path each run — schisms lock you in.<br><br>
-        Maze them. Slow them. Strip their shells. Don't forget about air.
+      <div id="ovbody">The GLORP are back — <em>armored</em>, <em>mutated</em>, and dripping
+        <em>corruption goo</em> that eats your build space. Wall them into mazes, slow them, strip their
+        shells, and watch the skies. Between waves, spend research on the Sphere Grid — each
+        <em>schism</em> locks you onto a path, so pick your specialty.
       </div>
       <div id="initialsPanel" class="hidden">
         <div id="initialsPrompt">NEW HIGH SCORE — ENTER INITIALS</div>
@@ -78,9 +78,13 @@
         <div id="initialsHint">↑↓ LETTER · ←→ MOVE · SPACE CONFIRM</div>
         <button class="btn lb" id="btnIniOk">OK</button>
       </div>
-      <button class="btn pk" id="btnStart" style="font-size:18px;padding:12px 28px;">CLOCK IN ▶</button>
+      <div id="ovActions">
+        <button class="btn pk" id="btnStart" style="font-size:18px;padding:12px 28px;">CLOCK IN ▶</button>
+        <button class="btn lb" id="btnLb"><span id="icLb"></span>RANKS</button>
+      </div>
     </div>
     <div id="leaderboard" class="hidden">
+      <button type="button" class="btn lb" id="lbClose" title="Close (Esc)" aria-label="Close leaderboard">×</button>
       <div id="lbTitle">HIGH SCORES</div>
       <div id="lbHead"><span>RK</span><span>SCORE</span><span>INI</span><span>WV</span></div>
       <div id="lbRows"></div>
@@ -88,7 +92,7 @@
   </div>
   <div id="bottombar">
     <div id="buildbar"></div>
-    <div id="info"><h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Tap bugs for GOD HAND smite — upgrade on the Hand path (R&amp;D). Space deploys.</span></div>
+    <div id="info"><h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Pick a turret (1–7) and tap the grid to deploy. Smite bugs by tapping them; turrets fire on the beat. R opens the Sphere Grid.</span></div>
   </div>
   <div id="ticker">VOLTWORKS™ — proudly frying bugs since the incident we don't discuss · the goo is not a beverage · R&amp;D is not liable for new limbs</div>
 </div>

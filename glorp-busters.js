@@ -18,7 +18,7 @@ function ytLoad(){
 
 /* ================= LEADERBOARD ================= */
 const LB_KEY="glorpBustersLb", LB_MAX=10;
-let leaderboard=[], pendingScore=null, iniSlot=0, iniChars=["A","A","A"], lbHighlight=-1;
+let leaderboard=[], pendingScore=null, iniSlot=0, iniChars=["A","A","A"], lbHighlight=-1, lbPinned=false;
 
 function normalizeLb(rows){
   if(!Array.isArray(rows)) return [];
@@ -82,12 +82,12 @@ function showInitialsEntry(){
   iniSlot=0; iniChars=["A","A","A"];
   refreshIniDisplay();
   $("initialsPanel").classList.remove("hidden");
-  $("btnStart").classList.add("hidden");
+  $("ovActions").classList.add("hidden");
 }
 function hideInitialsEntry(){
   pendingScore=null;
   $("initialsPanel").classList.add("hidden");
-  $("btnStart").classList.remove("hidden");
+  $("ovActions").classList.remove("hidden");
 }
 function cycleIniLetter(dir){
   const c=iniChars[iniSlot].charCodeAt(0);
@@ -139,9 +139,21 @@ async function initLeaderboard(){
   }
   renderLeaderboard();
 }
+function applyLeaderboardVis(){
+  const lb=$("leaderboard");
+  const overlayShown=!$("overlay").classList.contains("hidden");
+  lb.classList.toggle("hidden", !(overlayShown||lbPinned));
+  lb.classList.toggle("pinned", lbPinned);
+  const btn=$("btnLb");
+  if(btn) btn.classList.toggle("on", lbPinned);
+}
+function toggleLeaderboard(force){
+  lbPinned = (force===undefined) ? !lbPinned : !!force;
+  applyLeaderboardVis();
+}
 function setOverlayVisible(show){
   $("overlay").classList.toggle("hidden", !show);
-  $("leaderboard").classList.toggle("hidden", !show);
+  applyLeaderboardVis();
 }
 
 /* ================= CONSTANTS & DATA ================= */
@@ -2229,7 +2241,7 @@ function refreshInfo(){
     el.innerHTML=buildPlacementPanel(buildSel);
   }else{
     el.classList.remove("place","cant-afford");
-    el.innerHTML='<h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Select a turret (1–7), tap the grid. Double-tap a turret to select all of that type &amp; level — U upgrades as many as you can afford. Tap bugs for GOD HAND smite. Turrets fire on the beat. R opens the Sphere Grid.</span>';
+    el.innerHTML='<h3>WELCOME BACK, CONTRACTOR</h3><span class="dim">Place turrets on the grid to wall the GLORP into a maze — they fire on the beat. Tap bugs directly to smite them by hand. Earn research between waves to unlock nodes on the Sphere Grid.</span>';
   }
 }
 function buildCards(){
@@ -2300,8 +2312,10 @@ window.addEventListener("keydown",ev=>{
   if(ev.key==="u"&&towerSels.length) upgradeSelected();
   if(ev.key==="x"&&towerSels.length===1) sellTower(towerSels[0]);
   if(ev.key==="r"||ev.key==="R") toggleResearch();
+  if(ev.key==="l"||ev.key==="L"){ audio(); toggleLeaderboard(); }
   if(ev.key==="`"||ev.key==="~"){ audio(); $("mixPanel").classList.toggle("hidden"); }
   if(ev.key==="Escape"){ buildSel=null; towerSels=[]; toggleResearch(false); $("mixPanel").classList.add("hidden");
+    toggleLeaderboard(false);
     document.querySelectorAll(".card").forEach(x=>x.classList.remove("sel")); refreshInfo(); }
 });
 $("btnWave").onclick=()=>{ audio(); deployWave(); };
@@ -2312,6 +2326,8 @@ $("btnSound").onclick=()=>{ audio(); $("mixPanel").classList.remove("hidden"); }
 $("mixClose").onclick=()=>{ audio(); $("mixPanel").classList.add("hidden"); };
 $("btnRes").onclick=()=>{ audio(); toggleResearch(); };
 $("resClose").onclick=()=>{ audio(); toggleResearch(false); };
+$("btnLb").onclick=()=>{ audio(); toggleLeaderboard(); };
+$("lbClose").onclick=()=>{ audio(); toggleLeaderboard(false); };
 $("resPanel").addEventListener("pointerdown",ev=>{ if(ev.target===$("resPanel")) toggleResearch(false); });
 $("btnStart").onclick=async ()=>{
   if(pendingScore) return;
@@ -2393,6 +2409,7 @@ function boot(){
   $("icCore").innerHTML=svgi("core","#ffd700",15);
   $("icWave").innerHTML=svgi("wavei","#e8e4ff",14);
   $("icRes").innerHTML=svgi("res","#5dff9e",14);
+  $("icLb").innerHTML=svgi("core","#ffd700",14);
   $("icRes2").innerHTML=svgi("res","#5dff9e",18);
   $("btnSound").innerHTML=svgi("amp","#00e5ff",14)+"SND";
   RS.bindBio(()=>bio, n=>{ bio-=n; });

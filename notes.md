@@ -16,8 +16,16 @@ Responsive game UI for phones, especially short widescreen/landscape viewports.
 ## Responsive UI pass
 - Keep the fixed 960x520 canvas coordinate system and scale the surrounding layout with CSS.
 - Small screens use tighter HUD chips, smaller buttons, and a grid build bar.
-- Phone landscape under 560px tall switches to a two-column layout: playfield left, build/info controls right, ticker hidden.
-- Avoid canvas letterboxing so pointer math based on `getBoundingClientRect()` stays aligned.
+- The side rail only engages when there is room for it, so the grid never gets squeezed:
+  - Side rail (`hud / game controls` CSS grid, canvas left + build cards/info rail right) triggers on
+    `(orientation:landscape) and (min-width:900px)` OR `(orientation:landscape) and (max-height:560px)`
+    (the latter for short landscape phones where vertical stacking would not fit).
+  - Everything else (portrait, and narrow landscape < 900px tall enough to not be a phone) STACKS:
+    controls below the canvas, build cards as an `auto-fit` grid full width, canvas full width.
+  - Side rail: `#wrap` is `100dvh`; `#cvbox` uses `aspect-ratio:960/520` + width capped by `(100dvh-64px)*1.846` so the playfield fits the viewport height with no scroll/letterbox.
+- Auto corner leaderboard only shows in the wide side-rail layout; hidden in portrait and stacked landscape (use the RANKS button there). The pinned RANKS modal works in every layout (higher specificity than the hide rules).
+- Phone landscape (`max-height:560px`, `max-width:960px`) keeps the side layout but only tunes fonts/padding and forces a 2-col card grid.
+- Avoid canvas letterboxing so pointer math based on `getBoundingClientRect()` stays aligned (we scale the element, never draw bars).
 
 ## File URL render blocker
 - Opening `glorp-busters.html` directly from disk gives the page a `null` origin.
