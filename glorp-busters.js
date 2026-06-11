@@ -314,6 +314,7 @@ function recalc(){
     if(t.rampMul>1) t.tags.push("OVERCLOCK ×2 RAMP");
     if(overvoltMul>1.02) t.tags.push("OVERVOLT +"+Math.round((overvoltMul-1)*100)+"% RATE");
   }
+  syncAmpHums();
   refreshUI();
 }
 function makeTower(type,c,r){
@@ -1625,6 +1626,7 @@ let beatClock=0, barCrossed=false, barNum=0, schedBeat=0, shotHeat=0;
 let anchorAC=0, anchorBeat=0, useAC=false, muteUntilBeat=0, killQ=0, runStep=0;
 let threatRaw=0, threatSmooth=0, threatLatched=0;
 let musicMode=2, hatsOn=false; // default: FULL groove. 1=MINIMAL (pads+events), 0=SFX-only
+let subKickOn=true, chordStabOn=true, ampHumOn=true;
 function syncDelayTime(){
   if(AC&&FX) FX.dl.delayTime.setTargetAtTime(SPBnow()*0.75/Math.max(1,speedMul),AC.currentTime,0.08);
 }
@@ -1833,6 +1835,24 @@ function kick(when){
   o.connect(v); v.connect(BUS.drum.g); o.start(t); o.stop(t+0.3);
   duck(t);
 }
+function subKick(when,g){
+  if(!soundOn||!audio()||AC.state!=="running") return;
+  const a=AC, t=Math.max(a.currentTime,when||a.currentTime);
+  const T=chordTones(), s=T[0];
+  const freq=KEYROOT*Math.pow(2,(bendSemi(s)+transpose())/12-1);
+  const o=a.createOscillator(), v=a.createGain(); o.type="sine";
+  o.frequency.setValueAtTime(Math.max(28,freq),t);
+  v.gain.setValueAtTime(0.0001,t);
+  v.gain.exponentialRampToValueAtTime(Math.max(0.0002,g||0.09),t+0.01);
+  v.gain.exponentialRampToValueAtTime(0.0001,t+0.38);
+  o.connect(v); v.connect(BUS.bass.g); o.start(t); o.stop(t+0.42);
+}
+function chordStab(when,blend){
+  if(!soundOn||!audio()||AC.state!=="running") return;
+  const g=0.011+blend*0.01;
+  for(let ti=0;ti<3;ti++)
+    vAt(chz(ti,1),when+ti*0.007,0.085,"sawtooth",g,0,"lead",0.16,0.2);
+}
 function padChord(when,beats){
   if(!soundOn||!audio()||AC.state!=="running") return;
   const a=AC, t=Math.max(a.currentTime,when||a.currentTime);
@@ -1874,6 +1894,7 @@ function schedTick(b){
     bentBar=Math.random()<(corLevel()*0.9+waveTier()*0.08);
     arpIdx=0; threatLatched=threatSmooth;
     updateMusicMix();
+    if(ampHumOn) for(const t of towers) if(t.type==="amp"&&t.voice) ampHumTune(t,ampNeighborCount(t));
   }
   if(!soundOn||!AC||AC.state!=="running") return;
   const when=whenAtBeat(b);
@@ -1894,7 +1915,8 @@ function schedTick(b){
   if(pos===0&&musicMode>=1) padChord(when,4);   // pads: the harmonic bed (FULL & MINIMAL)
   if(muted||musicMode<2) return;                // groove only in FULL mode
   if(fight){
-    if(pos===0||(!half&&pos===8)) kick(when);
+    if(pos===0||(!half&&pos===8)){ kick(when); if(subKickOn) subKick(when,0.065*drumMul); }
+    if(chordStabOn&&tier>=2&&!half&&(pos===4||pos===12)) chordStab(when,blend);
     if(half ? pos===8 : (pos===4||pos===12))
       noiseAt(when,0.09,0.02*drumMul*(half?1.15:1),1500,"drum");
     if(tier>=1&&!half&&pos%4===0&&pos!==0)
@@ -2019,8 +2041,51 @@ function laserOff(t){
   try{
     const now=AC.currentTime;
     v.g.gain.setTargetAtTime(0.0001,now,0.04);
-    v.o1.stop(now+0.2); v.o2.stop(now+0.2);
+    if(v.o1){ v.o1.stop(now+0.2); v.o2.stop(now+0.2); }
+    else if(v.o) v.o.stop(now+0.2);
   }catch(e){}
+}
+function ampNeighborCount(t){
+  let n=0;
+  for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){
+    if(!dc&&!dr) continue;
+    const c=t.c+dc, r=t.r+dr;
+    if(!inB(c,r)) continue;
+    const tw=grid[idx(c,r)];
+    if(tw&&tw.type!=="wall") n++;
+  }
+  return n;
+}
+function ampVoiceN(){ let n=0; for(const t of towers) if(t.type==="amp"&&t.voice) n++; return n; }
+function startAmpHum(t){
+  if(!soundOn||!audio()||AC.state!=="running"||t.voice) return;
+  const a=AC, now=a.currentTime, base=chzS(towerDeg(t)%3,-1);
+  const o=a.createOscillator(), g=a.createGain();
+  o.type="sine"; o.frequency.value=base;
+  g.gain.setValueAtTime(0.0001,now);
+  g.gain.exponentialRampToValueAtTime(0.0018,now+0.3);
+  o.connect(g); g.connect(BUS.pad.g);
+  if(FX){ const rs=a.createGain(); rs.gain.value=0.4; g.connect(rs); rs.connect(FX.rsend); }
+  o.start(now);
+  t.voice={o,g,base};
+}
+function ampHumTune(t,n){
+  if(!t.voice||!AC||!t.voice.o) return;
+  const v=t.voice, now=AC.currentTime;
+  v.o.frequency.setValueAtTime(chzS(towerDeg(t)%3,-1),now);
+  v.g.gain.setTargetAtTime((0.001+Math.min(n,4)*0.00075)/Math.sqrt(Math.max(1,ampVoiceN())),now,0.18);
+}
+function syncAmpHums(){
+  if(!ampHumOn){
+    for(const t of towers) if(t.type==="amp") laserOff(t);
+    return;
+  }
+  for(const t of towers){
+    if(t.type!=="amp") continue;
+    const n=ampNeighborCount(t);
+    if(n>0){ if(!t.voice) startAmpHum(t); else ampHumTune(t,n); }
+    else laserOff(t);
+  }
 }
 function stopAllVoices(){ for(const t of towers) laserOff(t); }
 
@@ -2293,6 +2358,9 @@ function buildMixer(){
   $("mixEnabled").onchange=()=>{ setSoundOn($("mixEnabled").checked); };
   syncSoundBtn();
   $("mixHats").onchange=()=>{ hatsOn=$("mixHats").checked; };
+  $("mixSub").onchange=()=>{ subKickOn=$("mixSub").checked; };
+  $("mixStab").onchange=()=>{ chordStabOn=$("mixStab").checked; };
+  $("mixAmpHum").onchange=()=>{ ampHumOn=$("mixAmpHum").checked; syncAmpHums(); };
   document.querySelectorAll("#mixPanel [data-mm]").forEach(b=>{
     b.onclick=()=>{
       musicMode=parseInt(b.getAttribute("data-mm"));

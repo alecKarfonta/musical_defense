@@ -24,6 +24,12 @@ Responsive game UI for phones, especially short widescreen/landscape viewports.
 - Browser CORS blocks `fetch("glyphs/*.svg")` from `file://`, so `loadGlyphs().then(boot)` never reaches `boot()`.
 - Glyph SVG bodies are now inline in `glorp-glyphs.js`; `loadGlyphs()` validates expected names without network/file fetches.
 
+## Music experiment (sub / stabs / amp hum)
+- **Sub kick**: sine one octave below chord root, layered on kick hits (pos 0 & 8).
+- **Chord stabs**: tier 2+ saw triads on beat 2 & 4 (pos 4 & 12), chord-quantized.
+- **AMP hum**: pylons with adjacent turrets sustain a quiet pad-bus sine; gain scales with neighbor count.
+- Sound Lab checkboxes: SUB, STAB, AMP — toggle each layer independently (default on).
+
 ## Music tiers (wave)
 - **1–8**: D-minor triads, soft triangle pads, sparse bass.
 - **9–18**: 7th voicings, octave-doubled pads, ghost snares + lead hooks, saw plucks.
