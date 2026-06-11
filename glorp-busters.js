@@ -153,6 +153,7 @@ function toggleLeaderboard(force){
 }
 function setOverlayVisible(show){
   $("overlay").classList.toggle("hidden", !show);
+  if(!show) lbPinned=false;
   applyLeaderboardVis();
 }
 
@@ -1019,12 +1020,22 @@ function godSmite(e){
   }
   sfxSmite(onBeat);
 }
+function canvasDisplayScale(){
+  const rect=cv.getBoundingClientRect();
+  return rect.width/W;
+}
+function godHitRadius(e){
+  const scale=canvasDisplayScale();
+  /* keep at least ~36 screen px radius so smites stay tappable when the canvas is scaled down */
+  const minGame=36/scale;
+  return Math.max(e.r+12, minGame);
+}
 function enemyAtPixel(x,y){
   let best=null, bd=1e18;
   for(const e of enemies){
     if(e.dead) continue;
     const dx=e.x-x, dy=e.y-y, q=dx*dx+dy*dy;
-    const hitR=e.r+12;
+    const hitR=godHitRadius(e);
     if(q<=hitR*hitR&&q<bd){ bd=q; best=e; }
   }
   return best;
@@ -2288,9 +2299,9 @@ cv.addEventListener("pointerdown",ev=>{
   const [px,py]=canvasPos(ev);
   const [c,r]=[Math.floor(px/CELL),Math.floor(py/CELL)];
   hover=[c,r];
-  if(buildSel){ tryPlace(c,r); refreshUI(); return; }
   const hit=enemyAtPixel(px,py);
   if(hit){ godSmite(hit); return; }
+  if(buildSel){ tryPlace(c,r); refreshUI(); return; }
   const t=inB(c,r)?grid[idx(c,r)]:null;
   const now=performance.now();
   const dbl=t&&now-lastTowerTap.t<TOWER_DBL_MS&&lastTowerTap.c===c&&lastTowerTap.r===r;
